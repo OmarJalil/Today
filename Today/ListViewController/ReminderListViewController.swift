@@ -1,0 +1,71 @@
+//
+//  ViewController.swift
+//  Today
+//
+//  Created by Jalil Fierro on 07/01/23.
+//
+
+import UIKit
+
+final class ReminderListViewController: UICollectionViewController {
+
+    var dataSource: DataSource!
+    var reminders: [Reminder] = Reminder.sampleData
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        let listLayout = listLayout()
+        collectionView.collectionViewLayout = listLayout
+
+        let cellRegistration = UICollectionView.CellRegistration(handler: cellRegistrationHandler)
+
+        dataSource = DataSource(collectionView: collectionView) { collectionView, indexPath, itemIdentifier in
+            return collectionView.dequeueConfiguredReusableCell(using: cellRegistration, for: indexPath, item: itemIdentifier)
+        }
+
+        let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(didPressAddButton(_:)))
+        addButton.accessibilityLabel = NSLocalizedString("Add reminder", comment: "Add button accessibility label")
+        navigationItem.rightBarButtonItem = addButton
+
+        updateSnapshot()
+
+        collectionView.dataSource = dataSource
+    }
+
+    override func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
+        let id = reminders[indexPath.item].id
+        showDetail(for: id)
+    }
+
+    func showDetail(for id: Reminder.ID) {
+        let reminder = reminder(for: id)
+        let viewController = ReminderViewController(reminder: reminder) { [weak self] reminder in
+            self?.update(reminder, with: reminder.id)
+            self?.updateSnapshot(reloading: [reminder.id])
+        }
+        navigationController?.pushViewController(viewController, animated: true)
+    }
+}
+
+private extension ReminderListViewController {
+
+    func makeSwipeActions(for indexPath: IndexPath?) -> UISwipeActionsConfiguration? {
+        guard let indexPath = indexPath, let id = dataSource.itemIdentifier(for: indexPath) else { return nil }
+        let deleteActionTitle = NSLocalizedString("Delete", comment: "Delete action title")
+        let deleteAction = UIContextualAction(style: .destructive, title: deleteActionTitle) { [weak self] _, _, completion in
+            self?.deleteReminder(with: id)
+            self?.updateSnapshot()
+            completion(false)
+        }
+        return UISwipeActionsConfiguration(actions: [deleteAction])
+    }
+
+    func listLayout() -> UICollectionViewCompositionalLayout {
+        var listConfiguration = UICollectionLayoutListConfiguration(appearance: .grouped)
+        listConfiguration.showsSeparators = false
+        listConfiguration.backgroundColor = .clear
+        listConfiguration.trailingSwipeActionsConfigurationProvider = makeSwipeActions
+        return UICollectionViewCompositionalLayout.list(using: listConfiguration)
+    }
+}
+
